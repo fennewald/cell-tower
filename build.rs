@@ -48,8 +48,8 @@ impl Node {
     }
 
     fn write_code_inner(&self, f: &mut BufWriter<File>, parent: &str, name: &str, base: &str) -> io::Result<()> {
-        writeln!(f, "const gen_{}: &'static Node = Node {{", name)?;
-        writeln!(f, "    is_word: {:5?}, n_children: {}, parent: gen_{}", self.is_word, self.n_children(), parent)?;
+        writeln!(f, "const gen_{}: &'static Node = &Node {{", name)?;
+        writeln!(f, "    is_word: {:5?}, n_children: {}, parent: gen_{},", self.is_word, self.n_children(), parent)?;
         writeln!(f, "    children: [")?;
         writeln!(
             f,
