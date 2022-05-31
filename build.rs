@@ -2,7 +2,6 @@ use std::env;
 use std::path::Path;
 use std::fs::File;
 use std::io::{self,BufRead,BufReader,Write,BufWriter};
-use std::fmt;
 
 struct Node {
     is_word: bool,
@@ -36,20 +35,20 @@ impl Node {
 
     fn leaf_as_text(&self, prefix: &str, index: usize) -> String {
         if self.children[index].is_some() {
-            let c = char::from_u32(index as u32 + b'a' as u32).unwrap();
-            format!("Some(gen_{}{})", prefix, c)
+            let c = char::from_u32(index as u32 + b'A' as u32).unwrap();
+            format!("&GEN_{}{} as *const Node", prefix, c)
         } else {
-            "None".to_string()
+            "null()".to_string()
         }
     }
 
     fn write_code(&self, f: &mut BufWriter<File>) -> io::Result<()> {
-        self.write_code_inner(f, "root", "root", "")
+        self.write_code_inner(f, "_ROOT", "_ROOT", "")
     }
 
     fn write_code_inner(&self, f: &mut BufWriter<File>, parent: &str, name: &str, base: &str) -> io::Result<()> {
-        writeln!(f, "const gen_{}: &'static Node = &Node {{", name)?;
-        writeln!(f, "    is_word: {:5?}, n_children: {}, parent: gen_{},", self.is_word, self.n_children(), parent)?;
+        writeln!(f, "static GEN_{}: Node = Node {{", name)?;
+        writeln!(f, "    is_word: {:5?}, n_children: {}, parent: &GEN_{} as *const Node,", self.is_word, self.n_children(), parent)?;
         writeln!(f, "    children: [")?;
         writeln!(
             f,
@@ -97,7 +96,7 @@ impl Node {
         writeln!(f, "}};")?;
 
         for (i, c) in self.children.iter().enumerate() {
-            let suffix = char::from_u32(i as u32 + b'a' as u32).unwrap();
+            let suffix = char::from_u32(i as u32 + b'A' as u32).unwrap();
             let mut prefix = base.to_string();
             prefix.push(suffix);
             if let Some(child) = c {
@@ -138,7 +137,7 @@ fn main() {
     // Write output file
     let out_file = File::create(dest_path).expect("Couldn't create wordlist.rs");
     let mut writer = BufWriter::new(out_file);
-    //writeln!(writer, "use crate::dictionary::Node;").expect("Couldn't write header");
+    writeln!(writer, "use std::ptr::null;").expect("Couldn't write header");
     root.write_code(&mut writer).expect("Couldn't write word file");
     println!("cargo:rustc-cfg=has_generated_feature");
 }
