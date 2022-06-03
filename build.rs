@@ -43,15 +43,15 @@ impl Node {
     }
 
     fn write_code(&self, f: &mut BufWriter<File>) -> io::Result<()> {
-        self.write_code_inner(f, "_ROOT", "_ROOT", "")
+        self.write_code_inner(f, "_ROOT", "")
     }
 
-    fn write_code_inner(&self, f: &mut BufWriter<File>, parent: &str, name: &str, base: &str) -> io::Result<()> {
+    fn write_code_inner(&self, f: &mut BufWriter<File>, name: &str, base: &str) -> io::Result<()> {
         writeln!(f, "static GEN_{}: Node = Node {{", name)?;
         writeln!(
             f,
-            "    is_word: {:5?}, n_children: {}, parent: &GEN_{} as *const Node,",
-            self.is_word, self.n_children(), parent
+            "    is_word: {:5?}, n_children: {}",
+            self.is_word, self.n_children()
         )?;
         writeln!(f, "    children: [")?;
         writeln!(
@@ -104,7 +104,7 @@ impl Node {
             let mut prefix = base.to_string();
             prefix.push(suffix);
             if let Some(child) = c {
-                child.write_code_inner(f, name, &prefix, &prefix)?;
+                child.write_code_inner(f, &prefix, &prefix)?;
             }
         }
 

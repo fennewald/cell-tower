@@ -2,7 +2,6 @@
 pub struct Node {
     pub is_word: bool,
     pub n_children: u32,
-    parent: *const Node,
     children: [*const Node; 26],
 }
 
