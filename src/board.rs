@@ -1,6 +1,6 @@
 use std::ops::Index;
 use std::fmt;
-use crate::{Point,PointSet,dictionary};
+use crate::{Point, PointSet, Puzzle, dictionary};
 use colored::{Colorize, ColoredString};
 
 #[derive(Clone)]
@@ -90,7 +90,6 @@ impl Board {
     pub fn solve(&mut self) -> bool {
         println!("Solving:");
         println!("{}", self);
-
         for word in self.next_words().iter() {
             self.insert_word(word);
             if self.is_done() {
@@ -238,6 +237,26 @@ impl fmt::Display for Board {
             self.fmt_connect_row(f, y)?;
         }
         self.fmt_row(f, 11)
+    }
+}
+
+impl From<Puzzle> for Board {
+    fn from(value: Puzzle) -> Board {
+        let mut res = Board::new();
+        assert_eq!(value.width, 7);
+        assert_eq!(value.height, 12);
+        assert_eq!(value.minSize, 4);
+        assert_eq!(value.maxSize, 8);
+        assert_eq!(value.regions.len(), value.words.len());
+        value.regions
+            .iter()
+            .zip(value.words.iter())
+            .for_each(|(region, word)| {
+                region.iter()
+                    .zip(word.as_bytes().iter())
+                    .for_each(|(point, c)| res.letters[point[1]][point[0]] = *c)
+            });
+        return res;
     }
 }
 

@@ -50,7 +50,7 @@ impl Node {
         writeln!(f, "static GEN_{}: Node = Node {{", name)?;
         writeln!(
             f,
-            "    is_word: {:5?}, n_children: {}",
+            "    is_word: {:5?}, n_children: {},",
             self.is_word, self.n_children()
         )?;
         writeln!(f, "    children: [")?;

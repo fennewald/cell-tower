@@ -52,11 +52,7 @@ impl Point {
 
     /// Test if self is on the edge defined by edge_root
     pub fn on_edge(&self, edge_root: &Point) -> bool {
-        if let Some(p) = self.below() {
-            p.is_beyond(edge_root)
-        } else {
-            false
-        }
+        (self.y == edge_root.y && self.x <= edge_root.x) || (self.y+1 == edge_root.y && self.x > edge_root.x)
     }
 
     /// Test if self is beyond a given point
