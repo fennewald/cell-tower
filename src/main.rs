@@ -14,8 +14,11 @@ pub use point::{Point,PointSet};
 fn main() {
     let src = "rsupese\neriporn\nliesdin\nougwagh\nhtbrnap\necominp\naningge\nypcodhn\nlacseer\nemlowed\nullyedu\ntiplece\n";
     let mut b: Board = src.try_into().unwrap();
-    let new_words = b.next_words();
-    println!("{:?}", new_words);
+    let solutions = b.enumerate_solutions();
+    println!("Found {} solutions", solutions.len());
+    for solution in solutions {
+        println!("{}", solution);
+    }
 }
 
 // rsupese

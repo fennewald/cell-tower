@@ -166,7 +166,6 @@ impl PointSet {
     pub fn contiguous(&self) -> bool {
         let mut visited = self.make_bitset();
         self.mark_first(&mut visited);
-        dbg!(visited);
         visited.is_full()
     }
 

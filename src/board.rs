@@ -3,6 +3,7 @@ use std::fmt;
 use crate::{Point,PointSet,dictionary};
 use colored::{Colorize, ColoredString};
 
+#[derive(Clone)]
 pub struct Board {
     letters: [[u8; 7]; 12],
     word_ids: [[i8; 7]; 12],
@@ -16,9 +17,13 @@ impl Board {
         }
     }
 
+    fn visited(&self, x: usize, y: usize) -> bool {
+        self.word_ids[y][x] != -1
+    }
+
     /// Test if the board is completely filled in
     pub fn is_done(&self) -> bool {
-        self.word_ids.iter().any(|row| row.iter().any(|&id| id == -1))
+        self.word_ids.iter().all(|row| row.iter().all(|&id| id != -1))
     }
 
     /// Return number of defined words
@@ -35,20 +40,20 @@ impl Board {
     }
 
     /// Add the given point set to the current board
-    fn insert_word(&mut self, points: PointSet) {
+    fn insert_word(&mut self, points: &PointSet) {
         let word_id = self.n_words() as i8;
-        points.into_iter()
+        points.clone().into_iter()
             .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = word_id);
     }
 
     /// Remove the given point set
     /// It is up to the user to only call this on the most recent set of points
-    fn remove_word(&mut self, points: PointSet) {
-        points.into_iter()
+    fn remove_word(&mut self, points: &PointSet) {
+        points.clone().into_iter()
             .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = -1);
     }
 
-    /// Return the uppermost, leftmost point
+    /// Return the uppermost, leftmost, currently unmarked point
     fn get_root(&self) -> Option<Point> {
         for y in 0..12 {
             for x in 0..7 {
@@ -58,6 +63,44 @@ impl Board {
             }
         }
         return None;
+    }
+
+    /// Return a list of all valid solutions to the board
+    pub fn enumerate_solutions(&mut self) -> Vec<Board> {
+        let mut solutions = Vec::new();
+
+        self.enumerate_solutions_inner(&mut solutions);
+
+        return solutions;
+    }
+
+    fn enumerate_solutions_inner(&mut self, solutions: &mut Vec<Board>) {
+        for word in self.next_words().iter() {
+            self.insert_word(word);
+            if self.is_done() {
+                solutions.push(self.clone());
+            } else {
+                self.enumerate_solutions_inner(solutions)
+            }
+            self.remove_word(word);
+        }
+    }
+
+    /// Solve the board
+    pub fn solve(&mut self) -> bool {
+        println!("Solving:");
+        println!("{}", self);
+
+        for word in self.next_words().iter() {
+            self.insert_word(word);
+            if self.is_done() {
+                return true;
+            } else if self.solve() {
+                return true;
+            }
+            self.remove_word(word);
+        }
+        return false;
     }
 
 
@@ -92,6 +135,9 @@ impl Board {
             // Try to add 1 character to the word
             let last_point = points.last_point();
             for x in last_point.x+1..7 {
+                if self.visited(x as usize, last_point.y as usize) {
+                    continue;
+                }
                 // Consider point (x, last_point.y)
                 let letter = self.letters[last_point.y as usize][x as usize];
                 if let Some(next_node) = dict_node.get_next(letter) {
@@ -103,6 +149,9 @@ impl Board {
             if last_point.y < 11 {
                 let y = last_point.y + 1;
                 for x in 0..=last_point.x {
+                    if self.visited(x as usize, y as usize) {
+                        continue;
+                    }
                     let letter = self.letters[y as usize][x as usize];
                     if let Some(next_node) = dict_node.get_next(letter) {
                         let mut next_points = points.clone();
