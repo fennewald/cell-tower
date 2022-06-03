@@ -30,6 +30,12 @@ impl Node {
         unsafe { self.children[index].as_ref().is_some() }
     }
 
+    /// Return the next node
+    pub fn get_next(&'static self, c: u8) -> Option<&'static Node> {
+        let index = (c - b'a') as usize;
+        unsafe { self.children[index].as_ref() }
+    }
+
     pub fn is_word(&'static self, word: &[u8]) -> bool {
         if let Some(n) = self.get(word) {
             n.is_word
@@ -37,6 +43,11 @@ impl Node {
             false
         }
     }
+}
+
+pub fn first_node(c: u8) -> Option<&'static Node> {
+    let buffer = [c];
+    GEN__ROOT.get(&buffer)
 }
 
 pub fn get_node(word: &[u8]) -> Option<&'static Node> {

@@ -1,222 +1,223 @@
-use crate::Cell;
-
-#[derive(Copy,Clone,PartialEq,Eq)]
-struct Point {
-    x: usize,
-    y: usize,
-}
-
-impl Point {
-    /// Create a new point
-    fn new(x: usize, y: usize) -> Point {
-        Point { x, y }
-    }
-
-    /// Return a new point, 1 to the left
-    fn left(&self) -> Option<Point> {
-        if self.x == 0 {
-            None
-        } else {
-            Some(Point{ x: self.x-1, y: self.y })
-        }
-    }
-
-    /// Return a new point, 1 to the right
-    fn right(&self) -> Option<Point> {
-        if self.x == 6 {
-            None
-        } else {
-            Some(Point{ x: self.x+1, y: self.y })
-        }
-    }
-
-    /// Return a new point, 1 above
-    fn above(&self) -> Option<Point> {
-        if self.y == 0 {
-            None
-        } else {
-            Some(Point{ x: self.x, y: self.y-1 })
-        }
-    }
-
-    /// Return a new point, 1 below
-    fn below(&self) -> Option<Point> {
-        if self.y == 11 {
-            None
-        } else {
-            Some(Point{ x: self.x, y: self.y+1 })
-        }
-    }
-}
-
-#[derive(Clone)]
-struct PointSet {
-    points: [Option<Point>; 8],
-    length: u8,
-}
-
-impl PointSet {
-    fn new(root: Point) -> PointSet {
-        let mut res = PointSet {
-            points: [None; 8],
-            length: 1,
-        };
-        res.points[0] = Some(root);
-        return res;
-    }
-    /// Test if the root point has been reached
-    fn first_reached(&self) -> bool {
-        self.points[0] == None
-    }
-
-    /// Mark the first point of the set connected
-    fn mark_first_connected(&mut self) {
-        debug_assert!(self.points[0] != None);
-        self.connect_index(0)
-    }
-
-    /// Get the index of the provided point
-    fn index_of(&self, point: Point) -> Option<usize> {
-        self.points.iter().position(|&p| p == Some(point))
-    }
-
-    /// Mark the provided point as connected
-    fn connect(&mut self, point: Point) {
-        if let Some(index) = self.index_of(point) {
-            self.connect_index(index);
-        }
-    }
-
-    /// Mark the point at the index connected
-    /// Recursively mark all connected points invalid
-    fn connect_index(&mut self, index: usize) {
-        if let Some(coords) = self.points[index] {
-            self.length -= 1;
-            self.points[index] = None;
-            if let Some(p) = coords.left() {
-                self.connect(p);
-            }
-            if let Some(p) = coords.right() {
-                self.connect(p);
-            }
-            if let Some(p) = coords.above() {
-                self.connect(p);
-            }
-            if let Some(p) = coords.above() {
-                self.connect(p);
-            }
-        }
-    }
-
-    /// Is the current list empty
-    fn is_empty(&self) -> bool {
-        self.length == 0
-    }
-
-    /// Mark all points beyond the given point as connected
-    fn connect_beyond(&mut self, root: Point) {
-        debug_assert!(self.points[0] != None);
-        for x in root.x+1..7 {
-            self.connect(Point::new(x, root.y));
-        }
-        for x in 0..=root.x {
-            self.connect(Point::new(x, root.y+1));
-        }
-    }
-
-    /// Insert the given point into the internal list
-    fn insert(&mut self, point: Point) {
-        debug_assert!(self.length <= 7);
-        self.points[self.length as usize] = Some(point);
-        self.length += 1;
-    }
-}
-
-impl From<&[Point]> for PointSet {
-    fn from(slice: &[Point]) -> PointSet {
-        let mut src = slice.iter();
-        let mut res = PointSet { points: [None; 8], length: 0 };
-        for i in 0..8 {
-            if let Some(p) = src.next() {
-                res.points[i] = Some(*p);
-            }
-        }
-        return res;
-    }
-}
+use std::ops::Index;
+use std::fmt;
+use crate::{Point,PointSet,dictionary};
+use colored::{Colorize, ColoredString};
 
 pub struct Board {
     letters: [[u8; 7]; 12],
-    word_id: [[i8; 7]; 12],
+    word_ids: [[i8; 7]; 12],
 }
 
 impl Board {
-    /// Is the current set of selected cells connectable
-    ///
-    /// Key: . -> unselected, s -> selected, x -> eligible for connections
-    /// ```
-    /// . . s . . . s .
-    /// s s s s x x x x    Connectable
-    /// x x x x
-    ///
-    /// . s . . . s . .
-    /// . s s . . . . .    Impossible
-    /// . . s x x x x x
-    /// x x x
-    /// ```
-    ///
-    pub fn connectable(&self, selected: &PointSet) -> bool {
-        let mut points: PointSet = selected.clone();
-        let last_point = selected[selected.len() - 1];
-        points.connect_beyond(last_point);
-
-        // TODO perf the statement below
-        if points.first_reached() {
-            return points.length == 0;
-        } else if points.length != selected.len() as u8 {
-            // There were points marked using the edge that couldn't reach the
-            // root. It is impossible to win
-            return false;
-        } else {
-            points.mark_first_connected();
-            return points.length == 0;
+    fn new() -> Board {
+        Board {
+            letters: [[0; 7]; 12],
+            word_ids: [[-1; 7]; 12],
         }
     }
 
-    pub fn solve(&mut self) -> Option<()> {
-        // Select the uppermost, leftmost point
-        let mut selected = PointSet::new(self.first_unselected()?);
-
-        for i in 1..8 {
-            // Select a point from right on
-        }
-        Some(())
+    /// Test if the board is completely filled in
+    pub fn is_done(&self) -> bool {
+        self.word_ids.iter().any(|row| row.iter().any(|&id| id == -1))
     }
 
-    /// Return the leftmost, uppermost point
-    fn first_unselected(&self) -> Option<Point> {
+    /// Return number of defined words
+    pub fn n_words(&self) -> usize {
+        let mut max: i8 = -1;
         for y in 0..12 {
-            for x in 0..8 {
-                if self.word_id[y][x] == -1 {
-                    return Some(Point::new(x, y));
+            for x in 0..7 {
+                if self.word_ids[y][x] > max {
+                    max = self.word_ids[y][x]
+                }
+            }
+        }
+        (max + 1) as usize
+    }
+
+    /// Add the given point set to the current board
+    fn insert_word(&mut self, points: PointSet) {
+        let word_id = self.n_words() as i8;
+        points.into_iter()
+            .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = word_id);
+    }
+
+    /// Remove the given point set
+    /// It is up to the user to only call this on the most recent set of points
+    fn remove_word(&mut self, points: PointSet) {
+        points.into_iter()
+            .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = -1);
+    }
+
+    /// Return the uppermost, leftmost point
+    fn get_root(&self) -> Option<Point> {
+        for y in 0..12 {
+            for x in 0..7 {
+                if self.word_ids[y][x] == -1 {
+                    return Some(Point::new(x as u8, y as u8));
                 }
             }
         }
         return None;
     }
 
-    /// Return the set of unselected points beyond root
-    /// Filters for points that are
-    fn get_set_beyond(&self, root: Point, prefix: &[u8]) -> Vec<Point> {
-        let mut beyond = Vec::with_capacity(8);
-        for x in root.x+1..7 {
-            if self.word_id[root.y][x] != -1 {
-                continue;
+
+    /// For a given state, return a list of valid next words
+    /// TODO, return a &'static [u8] from the tree
+    pub fn next_words(&self) -> Vec<PointSet> {
+        let root_point = self.get_root().unwrap();
+        let points = PointSet::new(root_point);
+        let mut words = Vec::new();
+        let dict_node = dictionary::first_node(self[root_point]).unwrap();
+        self.list_words(points, dict_node, &mut words);
+        return words;
+    }
+
+    /// Recursively enumerate all possible words
+    pub fn list_words(
+        &self,
+        points: PointSet,
+        dict_node: &'static dictionary::Node,
+        list: &mut Vec<PointSet>
+    ) {
+        if !points.connectable() {
+            // If the given points aren't connectable, return early
+            return;
+        }
+        // First check if we're currently a word
+        if dict_node.is_word && points.contiguous() {
+            list.push(points.clone());
+        }
+
+        if points.length() < 8 {
+            // Try to add 1 character to the word
+            let last_point = points.last_point();
+            for x in last_point.x+1..7 {
+                // Consider point (x, last_point.y)
+                let letter = self.letters[last_point.y as usize][x as usize];
+                if let Some(next_node) = dict_node.get_next(letter) {
+                    let mut next_points = points.clone();
+                    next_points.push(Point::new(x, last_point.y));
+                    self.list_words(next_points, next_node, list);
+                }
             }
-            if
+            if last_point.y < 11 {
+                let y = last_point.y + 1;
+                for x in 0..=last_point.x {
+                    let letter = self.letters[y as usize][x as usize];
+                    if let Some(next_node) = dict_node.get_next(letter) {
+                        let mut next_points = points.clone();
+                        next_points.push(Point::new(x, y));
+                        self.list_words(next_points, next_node, list);
+                    }
+                }
+            }
         }
-        for x in 0..=root.x {
+    }
+
+    /// Test if a horizontal connection exists between (x, y) and (x+1, y)
+    fn is_h_connection(&self, x: usize, y: usize) -> bool {
+        debug_assert!(x <= 5);
+        debug_assert!(y <= 11);
+        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y][x+1])
+    }
+
+    /// Test if a vertical connection exists between (x, y) and (x, y+1)
+    fn is_v_connection(&self, x: usize, y: usize) -> bool {
+        debug_assert!(x <= 6);
+        debug_assert!(y <= 10);
+        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y+1][x])
+    }
+
+    /// Return a colored format of the given letter index
+    fn disp_char(&self, x: usize, y: usize) -> ColoredString {
+        let buf = [self.letters[y][x]; 1];
+        let s = std::str::from_utf8(&buf).unwrap();
+        if self.word_ids[y][x] == -1 {
+            s.normal()
+        } else {
+            s.reversed()
         }
-        beyond
+    }
+
+    /// Return a colored format of the given horizontal connector
+    fn disp_h_conn(&self, x: usize, y: usize) -> ColoredString {
+        if self.is_h_connection(x, y) {
+            " ".reversed()
+        } else {
+            " ".normal()
+        }
+    }
+
+    /// Return a colored format of the given horizontal connector
+    fn disp_v_conn(&self, x: usize, y: usize) -> ColoredString {
+        if self.is_v_connection(x, y) {
+            " ".reversed()
+        } else {
+            " ".normal()
+        }
+    }
+
+    /// Print the given row to the formatter
+    fn fmt_row(&self, f: &mut fmt::Formatter<'_>, index: usize) -> fmt::Result {
+        for x in 0..6 {
+            write!(f, "{}{}", self.disp_char(x, index), self.disp_h_conn(x, index))?;
+        }
+        writeln!(f, "{}", self.disp_char(6, index))
+    }
+
+    /// Print the row of connections
+    fn fmt_connect_row(&self, f: &mut fmt::Formatter<'_>, index: usize) -> fmt::Result {
+        for x in 0..6 {
+            write!(f, "{} ", self.disp_v_conn(x, index))?;
+        }
+        writeln!(f, "{}", self.disp_v_conn(6, index))
+    }
+}
+
+impl Index<Point> for Board {
+    type Output = u8;
+
+    fn index(&self, index: Point) -> &Self::Output {
+        &self.letters[index.y as usize][index.x as usize]
+    }
+}
+
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for y in 0..11 {
+            self.fmt_row(f, y)?;
+            self.fmt_connect_row(f, y)?;
+        }
+        self.fmt_row(f, 11)
+    }
+}
+
+#[derive(Debug)]
+pub enum ParseError {
+    UnexpectedChar(u8),
+    MissingChar{line: usize, character: usize},
+}
+
+impl TryFrom<&str> for Board {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let mut res = Board::new();
+        let mut bytes = value.as_bytes().iter();
+        for y in 0..12 {
+            for x in 0..7 {
+                match bytes.next() {
+                    Some(&c) if c >= b'a' && c <= b'z' => res.letters[y][x] = c,
+                    Some(&c) => return Err(ParseError::UnexpectedChar(c)),
+                    None => return Err(ParseError::MissingChar{ line: y, character: x }),
+                };
+            }
+            match bytes.next() {
+                Some(b'\n') => {},
+                Some(&c) => return Err(ParseError::UnexpectedChar(c)),
+                None => return Err(ParseError::MissingChar{ line: y, character: 7 }),
+            }
+        }
+        Ok(res)
     }
 }

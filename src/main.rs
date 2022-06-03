@@ -1,34 +1,33 @@
-use std::io;
+extern crate smallvec;
+extern crate colored;
 
+mod bitset;
+mod board;
 mod dictionary;
-// mod board;
-// mod cell;
-// 
-// use board::Board;
-// pub use cell::Cell;
+mod point;
+//mod solver;
 
-fn demo(word: &str) {
-    if dictionary::is_word(word.as_bytes()) {
-        println!("{} is a word", word);
-    } else {
-        println!("{} is not a word", word);
-    }
-}
+pub use bitset::Bitset;
+pub use board::Board;
+pub use point::{Point,PointSet};
 
 fn main() {
-    let mut buffer = String::new();
-    loop {
-        io::stdin().read_line(&mut buffer).expect("Failed to read input line");
-        buffer.pop(); // Remove newline
-        if let Some(node) = dictionary::get_node(&buffer.as_bytes()) {
-            let status = match node.is_word {
-                true => "is a word",
-                false => "is not a word",
-            };
-            println!("{} {}, {} children", buffer, status, node.n_children);
-        } else {
-            println!("{} is not a valid node prefix", buffer);
-        }
-        buffer.clear();
-    }
+    let src = "rsupese\neriporn\nliesdin\nougwagh\nhtbrnap\necominp\naningge\nypcodhn\nlacseer\nemlowed\nullyedu\ntiplece\n";
+    let mut b: Board = src.try_into().unwrap();
+    let new_words = b.next_words();
+    println!("{:?}", new_words);
 }
+
+// rsupese
+// eriporn
+// liesdin
+// ougwagh
+// htbrnap
+// ecominp
+// aningge
+// ypcodhn
+// lacseer
+// emlowed
+// ullyedu
+// tiplece
+
