@@ -1,7 +1,7 @@
-use std::ops::Index;
+use crate::{dictionary, Point, PointSet, Puzzle};
+use colored::{ColoredString, Colorize};
 use std::fmt;
-use crate::{Point, PointSet, Puzzle, dictionary};
-use colored::{Colorize, ColoredString};
+use std::ops::Index;
 
 #[derive(Clone)]
 pub struct Board {
@@ -23,7 +23,9 @@ impl Board {
 
     /// Test if the board is completely filled in
     pub fn is_done(&self) -> bool {
-        self.word_ids.iter().all(|row| row.iter().all(|&id| id != -1))
+        self.word_ids
+            .iter()
+            .all(|row| row.iter().all(|&id| id != -1))
     }
 
     /// Return number of defined words
@@ -42,14 +44,18 @@ impl Board {
     /// Add the given point set to the current board
     fn insert_word(&mut self, points: &PointSet) {
         let word_id = self.n_words() as i8;
-        points.clone().into_iter()
+        points
+            .clone()
+            .into_iter()
             .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = word_id);
     }
 
     /// Remove the given point set
     /// It is up to the user to only call this on the most recent set of points
     fn remove_word(&mut self, points: &PointSet) {
-        points.clone().into_iter()
+        points
+            .clone()
+            .into_iter()
             .for_each(|p| self.word_ids[p.y as usize][p.x as usize] = -1);
     }
 
@@ -88,8 +94,8 @@ impl Board {
 
     /// Solve the board
     pub fn solve(&mut self) -> bool {
-        println!("Solving:");
-        println!("{}", self);
+        //println!("Solving:");
+        //println!("{}", self);
         for word in self.next_words().iter() {
             self.insert_word(word);
             if self.is_done() {
@@ -101,7 +107,6 @@ impl Board {
         }
         return false;
     }
-
 
     /// For a given state, return a list of valid next words
     /// TODO, return a &'static [u8] from the tree
@@ -119,7 +124,7 @@ impl Board {
         &self,
         points: PointSet,
         dict_node: &'static dictionary::Node,
-        list: &mut Vec<PointSet>
+        list: &mut Vec<PointSet>,
     ) {
         if !points.connectable() {
             // If the given points aren't connectable, return early
@@ -133,7 +138,7 @@ impl Board {
         if points.length() < 8 {
             // Try to add 1 character to the word
             let last_point = points.last_point();
-            for x in last_point.x+1..7 {
+            for x in last_point.x + 1..7 {
                 if self.visited(x as usize, last_point.y as usize) {
                     continue;
                 }
@@ -166,14 +171,24 @@ impl Board {
     fn is_h_connection(&self, x: usize, y: usize) -> bool {
         debug_assert!(x <= 5);
         debug_assert!(y <= 11);
-        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y][x+1])
+        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y][x + 1])
     }
 
     /// Test if a vertical connection exists between (x, y) and (x, y+1)
     fn is_v_connection(&self, x: usize, y: usize) -> bool {
         debug_assert!(x <= 6);
         debug_assert!(y <= 10);
-        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y+1][x])
+        self.word_ids[y][x] != -1 && (self.word_ids[y][x] == self.word_ids[y + 1][x])
+    }
+
+    /// Test if there's a diagonal connection
+    fn is_d_connection(&self, x: usize, y: usize) -> bool {
+        let id = self.word_ids[y][x];
+
+        id != -1
+            && (self.word_ids[y][x + 1] == id)
+            && (self.word_ids[y + 1][x] == id)
+            && (self.word_ids[y + 1][x + 1] == id)
     }
 
     /// Return a colored format of the given letter index
@@ -205,10 +220,24 @@ impl Board {
         }
     }
 
+    /// Return a colored format of the given diagonal connector
+    fn disp_d_conn(&self, x: usize, y: usize) -> ColoredString {
+        if self.is_d_connection(x, y) {
+            " ".reversed()
+        } else {
+            " ".normal()
+        }
+    }
+
     /// Print the given row to the formatter
     fn fmt_row(&self, f: &mut fmt::Formatter<'_>, index: usize) -> fmt::Result {
         for x in 0..6 {
-            write!(f, "{}{}", self.disp_char(x, index), self.disp_h_conn(x, index))?;
+            write!(
+                f,
+                "{}{}",
+                self.disp_char(x, index),
+                self.disp_h_conn(x, index)
+            )?;
         }
         writeln!(f, "{}", self.disp_char(6, index))
     }
@@ -216,7 +245,7 @@ impl Board {
     /// Print the row of connections
     fn fmt_connect_row(&self, f: &mut fmt::Formatter<'_>, index: usize) -> fmt::Result {
         for x in 0..6 {
-            write!(f, "{} ", self.disp_v_conn(x, index))?;
+            write!(f, "{}{}", self.disp_v_conn(x, index), self.disp_d_conn(x, index))?;
         }
         writeln!(f, "{}", self.disp_v_conn(6, index))
     }
@@ -248,11 +277,13 @@ impl From<Puzzle> for Board {
         assert_eq!(value.minSize, 4);
         assert_eq!(value.maxSize, 8);
         assert_eq!(value.regions.len(), value.words.len());
-        value.regions
+        value
+            .regions
             .iter()
             .zip(value.words.iter())
             .for_each(|(region, word)| {
-                region.iter()
+                region
+                    .iter()
                     .zip(word.as_bytes().iter())
                     .for_each(|(point, c)| res.letters[point[1]][point[0]] = *c)
             });
@@ -263,7 +294,7 @@ impl From<Puzzle> for Board {
 #[derive(Debug)]
 pub enum ParseError {
     UnexpectedChar(u8),
-    MissingChar{line: usize, character: usize},
+    MissingChar { line: usize, character: usize },
 }
 
 impl TryFrom<&str> for Board {
@@ -277,13 +308,23 @@ impl TryFrom<&str> for Board {
                 match bytes.next() {
                     Some(&c) if c >= b'a' && c <= b'z' => res.letters[y][x] = c,
                     Some(&c) => return Err(ParseError::UnexpectedChar(c)),
-                    None => return Err(ParseError::MissingChar{ line: y, character: x }),
+                    None => {
+                        return Err(ParseError::MissingChar {
+                            line: y,
+                            character: x,
+                        })
+                    }
                 };
             }
             match bytes.next() {
-                Some(b'\n') => {},
+                Some(b'\n') => {}
                 Some(&c) => return Err(ParseError::UnexpectedChar(c)),
-                None => return Err(ParseError::MissingChar{ line: y, character: 7 }),
+                None => {
+                    return Err(ParseError::MissingChar {
+                        line: y,
+                        character: 7,
+                    })
+                }
             }
         }
         Ok(res)

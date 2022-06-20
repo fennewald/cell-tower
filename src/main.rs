@@ -9,7 +9,9 @@ mod board;
 mod dictionary;
 mod point;
 mod web;
-//mod solver;
+
+use std::io;
+use std::time::{Duration, Instant};
 
 pub use bitset::Bitset;
 pub use board::Board;
@@ -17,18 +19,24 @@ pub use point::{Point,PointSet};
 pub use web::Puzzle;
 
 fn main() {
-    for i in 1..=127 {
-        println!("Testing puzzle id {}", i);
-        let mut board: Board = web::Puzzle::from_id(i).unwrap().into();
-        println!("Loaded board");
-        let solutions = board.enumerate_solutions();
-        println!("Found {} solutions", solutions.len());
-        if solutions.len() > 1 {
-            for solution in solutions {
-                println!("{}", solution);
-            }
+    let mut buffer = String::new();
+    loop {
+        io::stdin().read_line(&mut buffer).unwrap();
+        buffer.pop(); // Remove endline
+        if let Ok(id) = buffer.parse::<usize>() {
+            println!("Loading puzzle {}", id);
+            let mut board: Board = web::Puzzle::from_id(id)
+                .unwrap()
+                .into();
+            println!("Loaded");
+            let start = Instant::now();
+            board.solve();
+            println!("Solved board in {:?}", start.elapsed());
+            println!("{}", board);
+        } else {
+            println!("{} is not a valid id", buffer);
         }
-        println!();
+        buffer.clear();
     }
 }
 
