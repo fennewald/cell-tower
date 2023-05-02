@@ -11,7 +11,7 @@ mod point;
 mod web;
 
 use std::io;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub use bitset::Bitset;
 pub use board::Board;
@@ -20,6 +20,8 @@ pub use web::Puzzle;
 
 fn main() {
     let mut buffer = String::new();
+    println!("Cell tower solver terminal");
+    println!("Enter a puzzle id, and it will be loaded and solved");
     loop {
         io::stdin().read_line(&mut buffer).unwrap();
         buffer.pop(); // Remove endline
